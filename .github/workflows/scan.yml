@@ -1,0 +1,48 @@
+name: Jio Gemini Scanner
+
+on:
+  schedule:
+    # Jalankan setiap 30 menit otomatis
+    - cron: '*/30 4-15 * * *'
+  workflow_dispatch:  # Bisa trigger manual kapan saja lewat tombol "Run workflow"
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run scanner
+        run: python yokgas.py
+        env:
+          PYTHONUTF8: "1"
+        continue-on-error: true
+
+      - name: Save results
+        run: |
+          echo "=== Scan at $(date) ===" >> scan_history.txt
+          if [ -f gemini_activation_links.txt ]; then
+            echo "Links found:" >> scan_history.txt
+            cat gemini_activation_links.txt >> scan_history.txt
+          fi
+
+      - name: Commit results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add gemini_activation_links.txt gemini_results.csv scan_history.txt || true
+          git diff --staged --quiet || git commit -m "Scan result $(date '+%Y-%m-%d %H:%M')"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
