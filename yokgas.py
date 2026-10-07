@@ -366,9 +366,9 @@ def save_result(serial: int, device_id: str, mobile: str, status: str, url: str)
             "nepal_time": now.strftime("%I:%M:%S %p"),
         })
 
-# ==================== MAIN ====================
+# ==================== MAIN SCANNER ====================
 
-def main() -> int:
+def scan_once() -> Counter[str]:
     print("=" * 70)
     print("STEP 1: Checking ALL panels and collecting online devices...")
     print("=" * 70)
@@ -462,7 +462,7 @@ def main() -> int:
     print(f"\nTotal Unique Number Candidates: {len(targets)}")
     if not targets:
         print("Koi number nahi mila.")
-        return 1
+        return Counter()
     
     print("\n" + "=" * 70)
     print("STEP 3: Starting OTP + Activation on all unique numbers...")
@@ -511,6 +511,42 @@ def main() -> int:
         print(f"{status:25}: {count}")
     print(f"\nLinks file : {LINKS_FILE.resolve()}")
     print(f"Results file : {RESULTS_FILE.resolve()}")
+    return statuses
+
+# ==================== MASTER LOOP ====================
+
+def main() -> int:
+    max_loops = int(os.environ.get("MAX_LOOPS", "20"))
+    print(f"Starting Continuous Scanner (Max Loops: {max_loops})...")
+    
+    send_telegram(
+        f"🚀 <b>Scanner Yokgas Berjalan di Cloud!</b>\n\n"
+        f"⚡ <b>Mode:</b> Pemindaian Non-Stop Berulang\n"
+        f"🔄 <b>Target:</b> {max_loops} putaran otomatis\n"
+        f"🔔 Link akan langsung dikirim ke sini seketika didapat!"
+    )
+    
+    total_links = 0
+    for loop in range(1, max_loops + 1):
+        print("\n" + "#" * 70)
+        print(f"### MULAI PUTARAN {loop}/{max_loops} ({datetime.now().strftime('%H:%M:%S')})")
+        print("#" * 70)
+        
+        statuses = scan_once()
+        links_in_loop = statuses.get("activation_url_found", 0)
+        total_links += links_in_loop
+        
+        if loop < max_loops:
+            wait_sec = 20
+            print(f"\nPutaran {loop} selesai. Istirahat {wait_sec} detik sebelum putaran berikutnya...")
+            time.sleep(wait_sec)
+    
+    send_telegram(
+        f"🏁 <b>Sesi Pemindaian Selesai!</b>\n\n"
+        f"Total Putaran: {max_loops}\n"
+        f"Total Link Didapat: {total_links}\n"
+        f"Workflow berikutnya akan otomatis tersambung."
+    )
     return 0
 
 if __name__ == "__main__":
